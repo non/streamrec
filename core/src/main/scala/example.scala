@@ -13,11 +13,8 @@ object Examples {
     val nats: InfStream[Int] =
       Macros.infinite1[Int, Int](0, _ + 1, n => n)
 
-    def blah(b: Int, c: Int): Int = b
     val fibs: InfStream[Int] =
-      Macros.infinite2[Int, Int, Int]((0, 1), (b, c) => (c, b + c), blah)
-    // val fibs: InfStream[Int] =
-    //   Macros.infinite2[Int, Int, Int]((0, 1), (b, c) => (c, b + c), (b, c) => b)
+      Macros.infinite2[Int, Int, Int]((0, 1), (b, c) => (c, b + c), (b, c) => b)
 
     val rats: InfStream[Double] =
       Macros.infinite3[Double, Long, Long, Long]((2L, 1L, 1L), { (b: Long, c: Long, d: Long) =>
