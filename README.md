@@ -2,14 +2,18 @@ Proof-of-concept for generating instances by rewriting anonymous functions.
 
 ## Purpose
 
-We want to turn something like this:
+Given this trait:
 
 ```scala
 trait InfStream[A] {
   def nth(n: Int): A
   def stream: Stream[A]
 }
+```
 
+We want to turn something like this:
+
+```scala
 val fibs: InfStream[Int] =
   Macros.infinite2[Int, Int, Int]((0, 1), (b, c) => (c, b + c), (b, c) => b)
 ```
@@ -17,15 +21,10 @@ val fibs: InfStream[Int] =
 Into an instance like this:
 
 ```scala
-trait InfStream[A] {
-  def nth(n: Int): A
-  def stream: Stream[A]
-}
-
 val fibs: InfStream[Int] =
-  new InfStream[A] {
-    def nth(n: Int): A = {
-      @tailrec def loop(i: Int, b: B, c: C): A =
+  new InfStream[Int] {
+    def nth(n: Int): Int = {
+      @tailrec def loop(i: Int, b: Int, c: Int): Int =
         if (i < 1) {
           b
         } else {
@@ -38,8 +37,8 @@ val fibs: InfStream[Int] =
       loop(n, b, c)
     }
   
-    def stream: Stream[A] = {
-      def next(b: B, c: C): Stream[A] =
+    def stream: Stream[Int] = {
+      def next(b: Int, c: Int): Stream[Int] =
         b #:: {
           val b2 = c
           val c2 = b + c
