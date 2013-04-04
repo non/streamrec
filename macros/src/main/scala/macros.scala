@@ -25,6 +25,13 @@ object Macros {
     import c.universe._
     import definitions._
 
+    val util = new Util[c.type](c)
+
+    if (!util.isAnonymousFunction(step.tree))
+      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
+    if (!util.isAnonymousFunction(result.tree))
+      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
+
     val expr = reify {
       new InfStream[A] {
         def nth(n: Int): A = {
@@ -51,9 +58,7 @@ object Macros {
       }
     }
 
-    val out = new Util[c.type](c).inlineAndReset[InfStream[A]](expr.tree)
-    //println(show(out))
-    out
+    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
   }
 
   def inf2[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag](c: Context)
@@ -61,6 +66,13 @@ object Macros {
 
     import c.universe._
     import definitions._
+
+    val util = new Util[c.type](c)
+
+    if (!util.isAnonymousFunction(step.tree))
+      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
+    if (!util.isAnonymousFunction(result.tree))
+      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
 
     val expr = reify {
       new InfStream[A] {
@@ -88,9 +100,7 @@ object Macros {
       }
     }
 
-    val out = new Util[c.type](c).inlineAndReset[InfStream[A]](expr.tree)
-    //println(show(out))
-    out
+    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
   }
 
   def inf3[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag, D: c.WeakTypeTag](c: Context)
@@ -98,6 +108,13 @@ object Macros {
 
     import c.universe._
     import definitions._
+
+    val util = new Util[c.type](c)
+
+    if (!util.isAnonymousFunction(step.tree))
+      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
+    if (!util.isAnonymousFunction(result.tree))
+      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
 
     val expr = reify {
       new InfStream[A] {
@@ -125,47 +142,80 @@ object Macros {
       }
     }
 
-    val out = new Util[c.type](c).inlineAndReset[InfStream[A]](expr.tree)
-    //println(show(out))
-    out
+    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
   }
 
   class Util[C <: Context with Singleton](val c:C) {
     import c.universe._
 
-    object Fixer extends Transformer {
-      def handle(trees: List[Tree]): List[Tree] = trees match {
-        case (t @ ValDef(
-          Modifiers(_), TermName(xx), _,
-          Match(
-            Annotated(Apply(Select(New(Ident(_)), _), Nil),
-              Apply(TypeApply(Select(Select(Ident(scala), TermName("Tuple2")), TermName("apply")), _),
-                List(arg1, arg2))), _))) ::
-            (u @ ValDef(_, TermName(bb), _, Select(Ident(TermName(xx1)), TermName("_1")))) ::
-            (v @ ValDef(_, TermName(cc), _, Select(Ident(TermName(xx2)), TermName("_2")))) ::
-            Nil if xx == xx1 && xx == xx2 =>
-          List(
-            ValDef(Modifiers(), TermName(bb), TypeTree(), arg1),
-            ValDef(Modifiers(), TermName(cc), TypeTree(), arg2)
-          )
+    def isAnonymousFunction(t: Tree): Boolean = t match {
+      case Function(_, _) => true
+      case _ => false
+    }
 
-        case (t @ ValDef(
+    val ApplyName = TermName("apply")
+
+      /**
+       * Given the following code:
+       * 
+       *   val t = Tuple6#apply(a0, b0, ...f0)
+       *   val a = t._1
+       *   val b = t._2
+       *   ...
+       *   val f = t._6
+       * 
+       * This transformer rewrites it to avoid tuple construction:
+       * 
+       *   val a = a0
+       *   val b = b0
+       *   ...
+       *   val f = f0
+       * 
+       * It should work for tuples of any size.
+       */
+    object Fixer extends Transformer {
+
+      /**
+       * Check the given list of trees to see if they reprsent a series
+       * of tuple access. Return either None (if they don't) or a Some
+       * tuple of the argument names, and the remaining trees (that were
+       * not part of the tuple assignments).
+       */
+      def matchTplDerefs(n: Int, tplName: String, trees: List[Tree]): Option[(List[String], List[Tree])] = {
+        @tailrec
+        def loop(i: Int, ns: List[String], ts: List[Tree]): Option[(List[String], List[Tree])] = {
+          if (i < n) {
+            val tplGetter = "_" + (i + 1).toString
+            ts match {
+              case Nil =>
+                None
+              case ValDef(_, TermName(s), _,
+                Select(Ident(TermName(tplName)), TermName(`tplGetter`))) :: tail =>
+                loop(i + 1, s :: ns, tail)
+            }
+          } else {
+            Some((ns.reverse, ts))
+          }
+        }
+        loop(0, Nil, trees)
+      }
+
+      def handle(trees: List[Tree]): List[Tree] = trees match {
+        case ValDef(
           Modifiers(_), TermName(xx), _,
           Match(
             Annotated(Apply(Select(New(Ident(_)), _), Nil),
-              Apply(TypeApply(Select(Select(Ident(scala), TermName("Tuple3")), TermName("apply")), _),
-                List(arg1, arg2, arg3))), _))) ::
-            (u @ ValDef(_, TermName(bb), _, Select(Ident(TermName(xx1)), TermName("_1")))) ::
-            (v @ ValDef(_, TermName(cc), _, Select(Ident(TermName(xx2)), TermName("_2")))) ::
-            (w @ ValDef(_, TermName(dd), _, Select(Ident(TermName(xx3)), TermName("_3")))) ::
-            Nil if xx == xx1 && xx == xx2 && xx == xx3 =>
-          val xs = List(
-            ValDef(Modifiers(), TermName(bb), TypeTree(), arg1),
-            ValDef(Modifiers(), TermName(cc), TypeTree(), arg2),
-            ValDef(Modifiers(), TermName(dd), TypeTree(), arg3)
-          )
-          println("yuussssss: %s" format xs)
-          xs
+              Apply(TypeApply(Select(Select(Ident(scala), TermName(tn)), ApplyName), _),
+                args)), _)) :: rest if tn.startsWith("Tuple") =>
+
+          matchTplDerefs(args.length, tn, rest) match {
+            case Some((names, rest)) =>
+              names.zip(args).map { case (name, arg) =>
+                ValDef(Modifiers(), TermName(name), TypeTree(), arg): Tree
+              } ::: handle(rest)
+            case None =>
+              trees.head :: handle(rest)
+          }
 
         case t :: ts =>
           t :: handle(ts)
@@ -176,8 +226,38 @@ object Macros {
 
       override def transform(tree: Tree): Tree = tree match {
         case Block(trees, last) =>
-          val b = Block(handle(trees), last)
-          super.transform(b)
+          super.transform(Block(handle(trees), last))
+
+        case _ =>
+          super.transform(tree)
+      }
+    }
+
+    /**
+     * This transformer is designed to clean up extra matching and
+     * Typed detritus that may otherwise derail inlining.
+     *
+     * TODO: Figure out why inliner doesn't rewrite Typed nodes.
+     */
+    object Cleanup extends Transformer {
+      override def transform(tree: Tree): Tree = tree match {
+        case Match(
+          body,
+          List(
+            CaseDef(Apply(Ident(TermName("Tuple3")), List(
+              Bind(TermName("b2"), Ident(nme.WILDCARD)),
+              Bind(TermName("c2"), Ident(nme.WILDCARD)),
+              Bind(TermName("d2"), Ident(nme.WILDCARD))
+            )), EmptyTree,
+              Apply(Select(Ident(TermName("Tuple3")), ApplyName), List(
+                Ident(TermName("b2")),
+                Ident(TermName("c2")),
+                Ident(TermName("d2"))
+              ))))) =>
+          transform(body)
+
+        case Typed(y, z) => y
+
         case _ =>
           super.transform(tree)
       }
@@ -185,11 +265,28 @@ object Macros {
 
     def fixup(tree: Tree): Tree = Fixer.transform(tree)
 
-    def inlineAndReset[T](tree: Tree): c.Expr[T] =
-      c.Expr[T](c.resetAllAttrs(fixup(inlineApplyRecursive(tree))))
+    def inlineCleanupAndReset[T](tree: Tree): c.Expr[T] = {
+      val inlined = inlineApplyRecursive(tree)
+      val fixed = fixup(inlined)
+      val cleaned = Cleanup.transform(fixed)
+      c.Expr[T](c.resetAllAttrs(cleaned))
+    }
 
+    /**
+     * Inling anonymous function application.
+     * 
+     * This means taking something like this:
+     * 
+     *   ((x: Int, y: Int) => x + y * 2)(3, 44)
+     * 
+     * And rewriting it to:
+     * 
+     *   (3 + 44 * 2)
+     * 
+     * We want to avoid any extra indirection, including creating
+     * scopes or assigning intermediate vals.
+     */
     def inlineApplyRecursive(tree: Tree): Tree = {
-      val ApplyName = TermName("apply")
 
       class InlineSymbol(symbol: Symbol, value: Tree) extends Transformer {
         override def transform(tree: Tree): Tree = tree match {
@@ -205,12 +302,12 @@ object Macros {
         override def transform(tree: Tree): Tree = tree match {
           case Apply(Select(Function(params, body), ApplyName), args) =>
             params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-              inlineSymbol(param.symbol, body, arg)
+              inlineSymbol(param.symbol, b, arg)
             }
   
           case Apply(Function(params, body), args) =>
             params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-              inlineSymbol(param.symbol, body, arg)
+              inlineSymbol(param.symbol, b, arg)
             }
   
           case _ =>
