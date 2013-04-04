@@ -3,6 +3,7 @@ package streamrec
 import language.experimental.macros
 import scala.reflect.macros.Context
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 trait InfStream[A] {
   def nth(n: Int): A
@@ -26,34 +27,33 @@ object Macros {
     import definitions._
 
     val util = new Util[c.type](c)
+    val reserved = Set("__i", "__n", "__b", "__b2")
 
-    if (!util.isAnonymousFunction(step.tree))
-      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
-    if (!util.isAnonymousFunction(result.tree))
-      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
+    util.verifyAnonymousFunction(step.tree, reserved)
+    util.verifyAnonymousFunction(result.tree, reserved)
 
     val expr = reify {
       new InfStream[A] {
-        def nth(n: Int): A = {
-          @tailrec def loop(i: Int, b: B): A =
-            if (i < 1) {
-              result.splice.apply(b)
+        def nth(__n: Int): A = {
+          @tailrec def loop(__i: Int, __b: B): A =
+            if (__i < 1) {
+              result.splice.apply(__b)
             } else {
-              val b2 = step.splice.apply(b)
-              loop(i - 1, b2)
+              val __b2 = step.splice.apply(__b)
+              loop(__i - 1, __b2)
             }
-          val b = start.splice
-          loop(n, b)
+          val __b = start.splice
+          loop(__n, __b)
         }
 
         def stream: Stream[A] = {
-          def next(b: B): Stream[A] =
-            result.splice.apply(b) #:: {
-              val b2 = step.splice.apply(b)
-              next(b2)
+          def next(__b: B): Stream[A] =
+            result.splice.apply(__b) #:: {
+              val __b2 = step.splice.apply(__b)
+              next(__b2)
             }
-          val b = start.splice
-          next(b)
+          val __b = start.splice
+          next(__b)
         }
       }
     }
@@ -68,34 +68,33 @@ object Macros {
     import definitions._
 
     val util = new Util[c.type](c)
+    val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2")
 
-    if (!util.isAnonymousFunction(step.tree))
-      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
-    if (!util.isAnonymousFunction(result.tree))
-      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
+    util.verifyAnonymousFunction(step.tree, reserved)
+    util.verifyAnonymousFunction(result.tree, reserved)
 
     val expr = reify {
       new InfStream[A] {
-        def nth(n: Int): A = {
-          @tailrec def loop(i: Int, b: B, c: C): A =
-            if (i < 1) {
-              result.splice.apply(b, c)
+        def nth(__n: Int): A = {
+          @tailrec def loop(__i: Int, __b: B, __c: C): A =
+            if (__i < 1) {
+              result.splice.apply(__b, __c)
             } else {
-              val (b2, c2) = step.splice.apply(b, c)
-              loop(i - 1, b2, c2)
+              val (__b2, __c2) = step.splice.apply(__b, __c)
+              loop(__i - 1, __b2, __c2)
             }
-          val (b, c) = start.splice
-          loop(n, b, c)
+          val (__b, __c) = start.splice
+          loop(__n, __b, __c)
         }
 
         def stream: Stream[A] = {
-          def next(b: B, c: C): Stream[A] =
-            result.splice.apply(b, c) #:: {
-              val (b2, c2) = step.splice.apply(b, c)
-              next(b2, c2)
+          def next(__b: B, __c: C): Stream[A] =
+            result.splice.apply(__b, __c) #:: {
+              val (__b2, __c2) = step.splice.apply(__b, __c)
+              next(__b2, __c2)
             }
-          val (b, c) = start.splice
-          next(b, c)
+          val (__b, __c) = start.splice
+          next(__b, __c)
         }
       }
     }
@@ -110,34 +109,33 @@ object Macros {
     import definitions._
 
     val util = new Util[c.type](c)
+    val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2", "__d", "__d2")
 
-    if (!util.isAnonymousFunction(step.tree))
-      c.abort(c.enclosingPosition, "step parameter must be an anonymous function")
-    if (!util.isAnonymousFunction(result.tree))
-      c.abort(c.enclosingPosition, "result parameter must be an anonymous function")
+    util.verifyAnonymousFunction(step.tree, reserved)
+    util.verifyAnonymousFunction(result.tree, reserved)
 
     val expr = reify {
       new InfStream[A] {
-        def nth(n: Int): A = {
-          @tailrec def loop(i: Int, b: B, c: C, d: D): A =
-            if (i < 1) {
-              result.splice.apply(b, c, d)
+        def nth(__n: Int): A = {
+          @tailrec def loop(__i: Int, __b: B, __c: C, __d: D): A =
+            if (__i < 1) {
+              result.splice.apply(__b, __c, __d)
             } else {
-              val (b2, c2, d2) = step.splice.apply(b, c, d)
-              loop(i - 1, b2, c2, d2)
+              val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
+              loop(__i - 1, __b2, __c2, __d2)
             }
-          val (b, c, d) = start.splice
-          loop(n, b, c, d)
+          val (__b, __c, __d) = start.splice
+          loop(__n, __b, __c, __d)
         }
 
         def stream: Stream[A] = {
-          def next(b: B, c: C, d: D): Stream[A] =
-            result.splice.apply(b, c, d) #:: {
-              val (b2, c2, d2) = step.splice.apply(b, c, d)
-              next(b2, c2, d2)
+          def next(__b: B, __c: C, __d: D): Stream[A] =
+            result.splice.apply(__b, __c, __d) #:: {
+              val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
+              next(__b2, __c2, __d2)
             }
-          val (b, c, d) = start.splice
-          next(b, c, d)
+          val (__b, __c, __d) = start.splice
+          next(__b, __c, __d)
         }
       }
     }
@@ -148,9 +146,34 @@ object Macros {
   class Util[C <: Context with Singleton](val c:C) {
     import c.universe._
 
+    class CollisionChecker(names: Set[String]) extends Transformer {
+      var seen = mutable.Set.empty[String]
+      override def transform(tree: Tree): Tree = tree match {
+        case t @ Ident(TermName(s)) if names(s) =>
+          seen.add(s)
+          t
+        case _ =>
+          super.transform(tree)
+      }
+      def check(tree: Tree) {
+        transform(tree)
+        if (!seen.isEmpty) {
+          val msg = "Anonymous function using reserved names: %s" format seen.mkString(", ")
+          c.abort(c.enclosingPosition, msg)
+        }
+      }
+    }
+
     def isAnonymousFunction(t: Tree): Boolean = t match {
       case Function(_, _) => true
       case _ => false
+    }
+
+    def verifyAnonymousFunction(t: Tree, reserved: Set[String]) {
+      if (!isAnonymousFunction(t))
+        c.abort(c.enclosingPosition, "Arguments required to be anonymous functions")
+      else
+        new CollisionChecker(reserved).check(t)
     }
 
     val ApplyName = TermName("apply")
