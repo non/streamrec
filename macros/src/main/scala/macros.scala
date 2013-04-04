@@ -176,6 +176,11 @@ object Macros {
         new CollisionChecker(reserved).check(t)
     }
 
+    object TermName {
+      def apply(s: String) = newTermName(s)
+      def unapply(name: TermName) = Some(name.encoded)
+    }
+
     val ApplyName = TermName("apply")
 
       /**
@@ -225,7 +230,7 @@ object Macros {
 
       def handle(trees: List[Tree]): List[Tree] = trees match {
         case ValDef(
-          Modifiers(_), TermName(xx), _,
+          _: Modifiers, TermName(xx), _,
           Match(
             Annotated(Apply(Select(New(Ident(_)), _), Nil),
               Apply(TypeApply(Select(Select(Ident(scala), TermName(tn)), ApplyName), _),
