@@ -53,16 +53,18 @@ val fibs: InfStream[Int] =
 
 ## Motivation
 
-Say we have a trait representing an infinite stream of numbers
-(Fibonacci sequence, digits of Pi, whatever). We can represent that as
-a `Stream[A]` but if we're only interested in a single result the
-stream imposes a lot of overhead. In those cases we'd prefer to use a
-simple tail-recursive method. However, if we want many values the
-stream gives us this naturally.
+Say we have a trait representing an infinite stream of numbers (Fibonacci
+sequence, digits of Pi, whatever). We can represent that as a `Stream[A]` but
+if we're only interested in a single result the stream imposes a lot of
+overhead. In those cases we'd prefer to use a simple tail-recursive method.
+However, in other cases we might want all the values, which the stream will do
+a better job at. We might even dream up other related methods: allocating the
+first N values into an Array, using a different stream implementation like
+`StreamT`, and so on.
 
-What we want is a single trait that links these two implementations,
-since the underlying machinery (the rules for generating the next
-sequence value) will be completely shared between the two.
+What we want is a single trait that links these implementations, since the
+underlying machinery (the rules for generating the next sequence value) will
+be completely shared between all the methods in question.
 
 ```scala
 trait InfStream[A] {
@@ -73,54 +75,52 @@ trait InfStream[A] {
 
 How to make this work?
 
-An easy way to go is to use tuples to store the intermediate state for
-our sequence. We can define our starting state, a function to get the
-next state tuple from the current state, and a function to turn a
-state tuple into a sequence value. For the fibonacci sequence, we'd
-use something like:
+An easy way to go is to use tuples (or some other intermediate object) to
+store the intermediate state for our sequence. We can define our starting
+state, a function to get the next state tuple from the current state, and a
+function to turn a state tuple into a sequence value. For the fibonacci
+sequence, we'd use something like:
 
 ```scala
-val start = (0, 1)
-def step(x: Int, y: Int) = (y, x + y)
-def result(x: Int, y: Int) = x
+val start = (0L, 1L)
+def step(x: Long, y: Long) = (y, x + y)
+def result(x: Long, y: Long) = x
 ```
 
 However, we'll still be building (and tearing apart) a tuple at every
 step of our sequence. To generate the nth Fibonacci number, we'd
-probably prefer:
+probably prefer something like:
 
 ```scala
-def nth(n: Int): Int = {
-  def fib(i: Int, x: Int, y: Int): Int =
+def nth(n: Int): Long = {
+  @tailrec def fib(i: Long, x: Long, y: Long): Long =
     if (i > 0) fib(i - 1, y, x + y) else x
-  fib(n, 0, 1)
+  fib(n, 0L, 1L)
 }
 ```
 
-It's easy to see how given `start`, `step`, and `result` we could
-generate an implementation of `nth`. We can do the same for stream
-generation:
+It's easy to see how given `start`, `step`, and `result` we can easily build
+an implementation of `nth`. The same is true for stream generation, and the
+code looks very similar:
 
 ```scala
-def stream: Stream[Int] = {
-  def next(x: Int, y: Int): Stream[Int] =
+def stream: Stream[Long] = {
+  def next(x: Long, y: Long): Stream[Long] =
     x #:: next(y, x + y)
-  next(0, 1)
+  next(0L, 1L)
 }
 ```
 
-It would be great if we could generate all this code from this simple
-functions!
+Using macros, we can generate all this code from the user-provided anonymous
+functions and starting values.
 
-## Description
-
-Each anonymous function takes N parameters and returns a tuple with N
-fields.  In our `nth` methodf we build a tail-recursive method that
-doesn't bother allocating the tuple, but plugs the values directly
-into the next call. In the `stream` case we do something similar, but
-instead of recursion we're allocating by-name parameters that defer
-the next call until the stream needs it. The whole thing is a
-work-around to the lack of multiple return values on the JVM.
+Each anonymous function takes N parameters and returns a tuple with N fields.
+In our `nth` method we build a tail-recursive method that doesn't bother
+allocating the tuple, but plugs the values directly into the next call. In the
+`stream` case we do something similar, but instead of recursion we're
+allocating by-name parameters that defer the next call until the stream needs
+it. The whole thing is a work-around to the lack of multiple return values on
+the JVM.
 
 ## Caveats
 
@@ -132,7 +132,14 @@ more, since we're currently using `reify` we have a huge amount of
 boiler-plate shard between each of these, differing only by the number
 of parameters.
 
-I still don't fully understand quasi-quoting but that may be able to
-solve the problems. I was tempted to build the trees "by hand" but
-these instances are large enough that the resulting code would
-probably be completely unreadable.
+There is currently a real risk of name collisions, since its not possible to
+use `reify` while generating fresh names. I still don't fully understand
+quasi-quoting but that may be able to solve the problems.
+
+I was tempted to build the trees "by hand". This would fix the naming problem
+and make it easier to abstract across arity. It would also make the macros
+2.10 compatible (ultimately I'd like to use this technique in Spire).
+Unfortunately these instances are so large that building the trees by hand
+becomes complete unreadable.
+
+Any suggestions on the best way to proceed would be appreciated.
