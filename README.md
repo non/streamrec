@@ -1,6 +1,6 @@
 Proof-of-concept for generating instances by rewriting anonymous functions.
 
-## Usage
+## Overview
 
 Given this trait:
 
@@ -11,7 +11,7 @@ trait InfStream[A] {
 }
 ```
 
-We turn this:
+We use Scala macros to turn this:
 
 ```scala
 val fibs: InfStream[Int] =
