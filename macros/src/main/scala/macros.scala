@@ -11,17 +11,17 @@ trait InfStream[A] {
 }
 
 object Macros {
-  def infinite1[A, B](start: B, step: B => B, result: B => A): InfStream[A] =
+  def infinite1[A, B](start: () => B, step: B => B, result: B => A): InfStream[A] =
     macro inf1[A, B]
 
-  def infinite2[A, B, C](start: (B, C), step: (B, C) => (B, C), result: (B, C) => A): InfStream[A] =
+  def infinite2[A, B, C](start: () => (B, C), step: (B, C) => (B, C), result: (B, C) => A): InfStream[A] =
     macro inf2[A, B, C]
 
-  def infinite3[A, B, C, D](start: (B, C, D), step: (B, C, D) => (B, C, D), result: (B, C, D) => A): InfStream[A] =
+  def infinite3[A, B, C, D](start: () => (B, C, D), step: (B, C, D) => (B, C, D), result: (B, C, D) => A): InfStream[A] =
     macro inf3[A, B, C, D]
 
   def inf1[A: c.WeakTypeTag, B: c.WeakTypeTag](c: Context)
-    (start: c.Expr[B], step: c.Expr[B => B], result: c.Expr[B => A]): c.Expr[InfStream[A]] = {
+    (start: c.Expr[() => B], step: c.Expr[B => B], result: c.Expr[B => A]): c.Expr[InfStream[A]] = {
 
     import c.universe._
     import definitions._
@@ -29,6 +29,7 @@ object Macros {
     val util = new Util[c.type](c)
     val reserved = Set("__i", "__n", "__b", "__b2")
 
+    util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
@@ -36,13 +37,13 @@ object Macros {
       new InfStream[A] {
         def nth(__n: Int): A = {
           @tailrec def loop(__i: Int, __b: B): A =
-            if (__i < 1) {
+            if (__i <= 1) {
               result.splice.apply(__b)
             } else {
               val __b2 = step.splice.apply(__b)
               loop(__i - 1, __b2)
             }
-          val __b = start.splice
+          val __b = start.splice.apply
           loop(__n, __b)
         }
 
@@ -52,7 +53,7 @@ object Macros {
               val __b2 = step.splice.apply(__b)
               next(__b2)
             }
-          val __b = start.splice
+          val __b = start.splice.apply
           next(__b)
         }
       }
@@ -62,7 +63,7 @@ object Macros {
   }
 
   def inf2[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag](c: Context)
-    (start: c.Expr[(B, C)], step: c.Expr[(B, C) => (B, C)], result: c.Expr[(B, C) => A]): c.Expr[InfStream[A]] = {
+    (start: c.Expr[() => (B, C)], step: c.Expr[(B, C) => (B, C)], result: c.Expr[(B, C) => A]): c.Expr[InfStream[A]] = {
 
     import c.universe._
     import definitions._
@@ -70,6 +71,7 @@ object Macros {
     val util = new Util[c.type](c)
     val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2")
 
+    util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
@@ -77,13 +79,13 @@ object Macros {
       new InfStream[A] {
         def nth(__n: Int): A = {
           @tailrec def loop(__i: Int, __b: B, __c: C): A =
-            if (__i < 1) {
+            if (__i <= 1) {
               result.splice.apply(__b, __c)
             } else {
               val (__b2, __c2) = step.splice.apply(__b, __c)
               loop(__i - 1, __b2, __c2)
             }
-          val (__b, __c) = start.splice
+          val (__b, __c) = start.splice.apply
           loop(__n, __b, __c)
         }
 
@@ -93,7 +95,7 @@ object Macros {
               val (__b2, __c2) = step.splice.apply(__b, __c)
               next(__b2, __c2)
             }
-          val (__b, __c) = start.splice
+          val (__b, __c) = start.splice.apply
           next(__b, __c)
         }
       }
@@ -103,7 +105,7 @@ object Macros {
   }
 
   def inf3[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag, D: c.WeakTypeTag](c: Context)
-    (start: c.Expr[(B, C, D)], step: c.Expr[(B, C, D) => (B, C, D)], result: c.Expr[(B, C, D) => A]): c.Expr[InfStream[A]] = {
+    (start: c.Expr[() => (B, C, D)], step: c.Expr[(B, C, D) => (B, C, D)], result: c.Expr[(B, C, D) => A]): c.Expr[InfStream[A]] = {
 
     import c.universe._
     import definitions._
@@ -111,6 +113,7 @@ object Macros {
     val util = new Util[c.type](c)
     val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2", "__d", "__d2")
 
+    util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
@@ -118,13 +121,13 @@ object Macros {
       new InfStream[A] {
         def nth(__n: Int): A = {
           @tailrec def loop(__i: Int, __b: B, __c: C, __d: D): A =
-            if (__i < 1) {
+            if (__i <= 1) {
               result.splice.apply(__b, __c, __d)
             } else {
               val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
               loop(__i - 1, __b2, __c2, __d2)
             }
-          val (__b, __c, __d) = start.splice
+          val (__b, __c, __d) = start.splice.apply
           loop(__n, __b, __c, __d)
         }
 
@@ -134,7 +137,7 @@ object Macros {
               val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
               next(__b2, __c2, __d2)
             }
-          val (__b, __c, __d) = start.splice
+          val (__b, __c, __d) = start.splice.apply
           next(__b, __c, __d)
         }
       }
