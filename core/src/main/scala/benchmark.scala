@@ -19,13 +19,14 @@ class PrimeBenchmarks extends MyBenchmark {
   var n: Int = 0
 
   val sieveSize = 450 * 1000
+  val cutoff = SafeLong(10000)
 
   override protected def setUp() {
     n = scala.math.pow(2, pow).toInt
   }
 
   def timeNth(reps: Int) = run(reps) {
-    Siever(sieveSize).nth(n)
+    Siever(sieveSize, cutoff).nth(n)
   }
 }
 

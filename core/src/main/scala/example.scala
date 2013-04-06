@@ -90,9 +90,10 @@ object Examples {
   //val sieveSize = 450 * 1000
   val sieveSize = 12 * 1000 * 1000
   //val sieveSize = 3 * 1000
+  val cutoff = SafeLong(1000000000L)
 
   val primes1: InfStream[SafeLong] = Macros.infinite3[SafeLong, Siever, SafeLong, SafeLong](
-    () => (Siever(sieveSize), SafeLong(2), SafeLong(3)),
+    () => (Siever(sieveSize, cutoff), SafeLong(2), SafeLong(3)),
     { (siever, a, b) =>
       val c = siever.nextAfter(b)
       (siever, b, c)
@@ -100,51 +101,13 @@ object Examples {
     { (siever, a, b) => a }
   )
 
-  def timer[A](s: String)(f: => A): A = {
-    val t0 = System.nanoTime
-    val a = f
-    val t = System.nanoTime - t0
-    println("%s generated %s in %.1f ms" format (s, a, t / 1000000.0))
-    a
-  }
-
   def main(args: Array[String]) {
-
-    // NOTE: for real timing info we should probably be using caliper
-    // this is just very rough back-of-the-envelope kind of stuff.
-
-    // println("  primes0 %s" format primes0.stream.take(30).toList)
-    // println("  primes1 %s" format primes1.stream.take(30).toList)
-
-    val warmup = List(100, 1000, 10000, 100000, 1000000)
-    val ns = List(100, 1000, 10000, 100000, 1000000, 10000000, 20000000)
-
-    println("warming up the sieve...")
-    warmup.foreach { n =>
-      Siever(sieveSize).nth(n)
-    }
-    println("done")
-    System.gc()
-    Thread.sleep(1000)
-    println("timing the sieve..." format sieveSize)
-    ns.foreach { n =>
-      timer("  siever.nth (%s)" format n)(Siever(sieveSize).nth(n))
-      System.gc()
-      Thread.sleep(500)
-    }
-
-    // println("comparing naive (0) and sieve (1) for nth prime:")
-    // List(100, 1000, 10000, 100000, 1000000).foreach { n =>
-    //   timer("  primes0.nth(%s)" format n)(primes0.nth(n))
-    //   timer("  primes1.nth(%s)" format n)(primes1.nth(n))
-    // }
-
-    // println("finding th 100th element, and the first 10 elements:")
-    // println("  nats    %s %s" format (nats.nth(100), nats.stream.take(10).toList))
-    // println("  fibs    %s %s" format (fibs.nth(100), fibs.stream.take(10).toList))
-    // println("  rats0   %s %s" format (rats0.nth(100).toString, rats0.stream.take(10).toList))
-    // println("  rats1   %s %s" format (rats1.nth(100).toString, rats1.stream.take(10).toList))
-    // println("  primes0  %s %s" format (primes0.nth(100).toString, primes0.stream.take(10).toList))
-    // println("  primes1  %s %s" format (primes1.nth(100).toString, primes1.stream.take(10).toList))
+    println("finding th 100th element, and the first 10 elements:")
+    println("  nats    %s %s" format (nats.nth(100), nats.stream.take(10).toList))
+    println("  fibs    %s %s" format (fibs.nth(100), fibs.stream.take(10).toList))
+    println("  rats0   %s %s" format (rats0.nth(100).toString, rats0.stream.take(10).toList))
+    println("  rats1   %s %s" format (rats1.nth(100).toString, rats1.stream.take(10).toList))
+    println("  primes0  %s %s" format (primes0.nth(100).toString, primes0.stream.take(10).toList))
+    println("  primes1  %s %s" format (primes1.nth(100).toString, primes1.stream.take(10).toList))
   }
 }
