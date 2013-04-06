@@ -19,12 +19,10 @@ import spire.syntax._
  * 
  * 0. Consider an option to use multiple threads
  * 1. Faster heap/priority queue
- * 2. Separate queue into fast array and one or more slow queues
- * 3. Tune chunkSize
- * 4. Consider trying a bitset for larger chunks
- * 5. Use Long internally until we have to switch to SafeLong.
- * 6. Compress the amount of space our heaps take up.
- * 7. Read more efficient segmented sieves to get other ideas.
+ * 2. Tune chunkSize
+ * 3. Use Long internally until we have to switch to SafeLong.
+ * 4. Compress the amount of space our heaps take up.
+ * 5. Read more efficient segmented sieves to get other ideas.
  * 
  * Obviously InfStream has to be a bit more flexible than a
  * traditional prime finder that knows ahead of time what range it
@@ -33,37 +31,66 @@ import spire.syntax._
  * like to do as well as possible.
  */
 
-object Types {
-  type N = SafeLong
-}
-
-import Types._
+/**
+ * For now we'll be using SafeLong as our boxed number.
+ * 
+ * It's essentially a boxed Long that will overflow to BigInt if needed.
+ * This protects us when doing things like n ** 2.
+ */
+object Types { type N = SafeLong }
 
 object N {
   def apply(n: Int) = SafeLong(n)
   def apply(n: Long) = SafeLong(n)
 }
 
+import Types._
+
+/**
+ * Represents a prime factor which we need to keep track of.
+ *
+ * The first field 'p' is the prime itself. The 'next' field is the
+ * next multiple of the prime that we expect to see.
+ * 
+ * We use a slightly non-standard compare() function so that the
+ * factor with the smallest 'next' field will be the largest.
+ */
 case class Factor(p: N, var next: N) extends Ordered[Factor] {
   def compare(that: Factor): Int = -(this.next compare that.next)
 }
 
+/**
+ * Reprsents a prime factor which we need to keep track of.
+ * 
+ * Similar to Factor, but in this case the prime is small enough that
+ * it fits in an Int. This means that each of our sieve segments will
+ * contain at least one multiple of 'p' if not more. So we can use a
+ * slightly more compact data structure.
+ */
 case class FastFactor(p: Int, var m: SafeLong)
 
+/**
+ * This class simply wraps an Array[FastFactor]. Its only real purpose
+ * is to allow us to lazily initialize our fast factors (which we can
+ * only do after constructing our first sieve segment).
+ */
 object FastFactors {
   def empty = FastFactors(new Array[FastFactor](0))
 }
 
 case class FastFactors(var arr: Array[FastFactor])
 
-object BitSet {
-  def alloc(nbuckets: Int): BitSet = {
-    val n: Int = (nbuckets >> 5)
-    val arr = new Array[Int](n)
-    new BitSet(nbuckets, arr)
-  }
-}
-
+/**
+ * Fast BitSet implementation.
+ *
+ * This bitset is just intended to be a little bit faster than
+ * Scala's, and to support accessing its internals, which we do in
+ * some cases.
+ * 
+ * The max Int length (~2B) is a current limit to how big individual
+ * sieve segments can get. Until our sieving is more efficient, we
+ * don't want segments that big anyway, so this is OK.
+ */
 case class BitSet(len: Int, arr: Array[Int]) {
   def length: Int = len
 
@@ -107,6 +134,40 @@ case class BitSet(len: Int, arr: Array[Int]) {
   // }
 }
 
+/**
+ * This respresents a single sieve segment.
+ *
+ * The 'start' field says what this segment's first number
+ * is. 'primes' is a bitset of possible primes in this
+ * segment. 'cutoff' specifies the largest prime factor we're
+ * interested in. This means that cutoff**2-1 is the largest prime we
+ * can reliably identify.
+ * 
+ * We are using a mod30 wheel, which means that we don't need to
+ * manually factor using 2, 3, or 5 (30 is the lcm of 2, 3, and
+ * 5). Since each wheel turn is 30-bits, and our bitset groups
+ * elements into 32-bit groups (integers), we have a 480-bit (15
+ * integer) period between the wheel and the bitset. This requires our
+ * segment length to be divisible by 480.
+ * 
+ * When building a sieve, we will first initialize using the mod30
+ * wheel. Then, if we are on the first segment, we'll do a traditional
+ * sieve. We'll save any primes greater than 5 we find as factors,
+ * either fast factors (if they will show up frequently in each
+ * segment) or slow factors otherwise. If a factor is larger than
+ * cutoff we don't save it. After that we'll be done with the first
+ * segment.
+ *
+ * For later segments, we will use our fast and slow factors to block
+ * out composites as we find them. Like in the first segment, we'll
+ * save factors we find (although any new factors we find now will
+ * always be slow). And of course we won't save any factors above our
+ * cutoff.
+ *
+ * Once the sieve is initialized it doesn't do anything else
+ * interesting, besides report prime numbers. Currently its internals
+ * are made available to the Siever.
+ */
 object Sieve {
   val wheel30: Array[Int] = {
     var b: Long = 0L
@@ -236,7 +297,8 @@ case class Sieve(start: N, primes: BitSet, cutoff: SafeLong) {
           while (k < lim) { k += pp; primes -= k }
           m = k.toLong + pp
         }
-        if (m - primes.length < primes.length) {
+        if (p < 7) {
+        } else if (m - primes.length < primes.length) {
           buf += FastFactor(p, N(m))
         } else if (p < cutoff) {
           slowq += Factor(N(p), N(m))
@@ -266,6 +328,17 @@ case class Sieve(start: N, primes: BitSet, cutoff: SafeLong) {
   }
 }
 
+/**
+ * The Siever manages the segmented sieve process.
+ *
+ * At any given time, it holds onto a single sieve segment. Thus, the
+ * siever should be used for a single lookup or traversal.
+ *
+ * Sievers are built using 'chunkSize' and 'cutoff' parameters. These
+ * are passed along to any sieve segments they create. When possible,
+ * it's probably better to use methods on the companion object, which
+ * will instantiate a Siever for you with reasonable parameters.
+ */
 object Siever {
   val sieveSize = 9600 * 1000
 
@@ -282,7 +355,6 @@ case class Siever(chunkSize: Int, cutoff: N) {
   val arr = BitSet.alloc(chunkSize)
   var start: SafeLong = N(0)
   var limit: SafeLong = start + chunkSize
-  //val q: PriorityQueue[Factor] = PriorityQueue(Factor(N(2), N(4)))
   val fastq: FastFactors = FastFactors.empty
   val slowq: PriorityQueue[Factor] = PriorityQueue.empty[Factor]
   var sieve: Sieve = Sieve(start, arr, cutoff)
