@@ -220,25 +220,48 @@ object Examples {
     var sieve: Sieve = Sieve(start, arr)
     sieve.init(q)
 
+    def nth(n: Int): N = {
+      if (n == 1) return N(2)
+      var i = 3
+      var k = n - 1
+      while (true) {
+        val primes = sieve.primes
+        while (i < primes.length) {
+          if (primes(i)) {
+            k -= 1
+            if (k < 1) return sieve.start + i
+          }
+          i += 2
+        }
+        initNextSieve()
+        i = 1
+      }
+      return N(0) // impossible
+    }
+
+    private def initNextSieve() {
+      start += chunkSize
+      limit += chunkSize
+      var i = 0
+      while (i < arr.length) { arr(i) = false; i += 1 }
+      sieve = Sieve(start, arr)
+      sieve.init(q)
+    }
+
     def nextAfter(n: N): N = {
       var nn = sieve.nextAfter(n)
       while (nn == null) {
-        start += chunkSize
-        limit += chunkSize
-        var i = 0
-        while (i < arr.length) { arr(i) = false; i += 1 }
-        sieve = Sieve(start, arr)
-        sieve.init(q)
+        initNextSieve()
         nn = sieve.nextAfter(start - 1)
       }
       nn
     }
   }
 
-  val sieveSize = 900 * 1000
+  val sieveSize = 450 * 1000
 
   val primes1: InfStream[N] = Macros.infinite3[N, Siever, N, N](
-    () => (Siever(300000), N(2), N(3)),
+    () => (Siever(sieveSize), N(2), N(3)),
     { (siever, a, b) =>
       val c = siever.nextAfter(b)
       (siever, b, c)
@@ -256,10 +279,14 @@ object Examples {
 
   def main(args: Array[String]) {
 
-    //println("timing the segmented sieve implementation")
-    //List(100, 1000, 10000, 100000, 1000000, 10000000, 100000000).foreach { n =>
-    //   timer("  primes1.nth(%s)" format n)(primes1.nth(n))
-    // }
+    // NOTE: for real timing info we should probably be using caliper
+    // this is just very rough back-of-the-envelope kind of stuff.
+
+    println("timing the segmented sieve (s=%s) implementation" format sieveSize)
+    List(100, 1000, 10000, 100000, 1000000, 10000000).foreach { n =>
+      timer("  siever.nth(%s)" format n)(Siever(sieveSize).nth(n))
+      timer("  primes1.nth(%s)" format n)(primes1.nth(n))
+    }
 
     println("comparing naive (0) and sieve (1) for nth prime:")
     List(100, 1000, 10000, 100000, 1000000).foreach { n =>
