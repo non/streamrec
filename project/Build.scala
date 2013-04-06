@@ -11,7 +11,7 @@ object BuildSettings {
     // resolvers += Resolver.sonatypeRepo("snapshots")
 
     version := "0.1.0",
-    scalacOptions ++= Seq("-deprecation"),
+    scalacOptions ++= Seq("-deprecation", "-optimize"),
     scalaVersion := "2.10.0",
 
     libraryDependencies += "org.spire-math" %% "spire" % "0.4.0-M3"
