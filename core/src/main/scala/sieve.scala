@@ -91,6 +91,14 @@ case class FastFactors(var arr: Array[FastFactor])
  * sieve segments can get. Until our sieving is more efficient, we
  * don't want segments that big anyway, so this is OK.
  */
+object BitSet {
+  def alloc(nbuckets: Int): BitSet = {
+    val n: Int = (nbuckets >> 5)
+    val arr = new Array[Int](n)
+    new BitSet(nbuckets, arr)
+  }
+}
+
 case class BitSet(len: Int, arr: Array[Int]) {
   def length: Int = len
 
@@ -471,8 +479,8 @@ object SieveTiming {
       1 * 1000 * 1000 ::
       10 * 1000 * 1000 ::
       100 * 1000 * 1000 ::
-      1 * 1000 * 1000 * 1000 ::
-      2 * 1000 * 1000 * 1000 ::
+      // 1 * 1000 * 1000 * 1000 ::
+      // 2 * 1000 * 1000 * 1000 ::
       Nil
     )
 
