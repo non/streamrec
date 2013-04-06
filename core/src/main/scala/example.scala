@@ -93,15 +93,20 @@ object Examples {
    * 
    * Some future optimizations:
    * 
+   * 0. Consider an option to use multiple threads
    * 1. Faster heap/priority queue
    * 2. Separate queue into fast array and one or more slow queues
    * 3. Tune chunkSize
    * 4. Consider trying a bitset for larger chunks
    * 5. Use Long internally until we have to switch to SafeLong.
+   * 6. Compress the amount of space our heaps take up.
+   * 7. Read more efficient segmented sieves to get other ideas.
    * 
    * Obviously InfStream has to be a bit more flexible than a
    * traditional prime finder that knows ahead of time what range it
-   * will be operating over.
+   * will be operating over. Also, it's not written in C/assembly.
+   * So it will probably never be truly competitive, but I'd 
+   * like to do as well as possible.
    */
   type N = SafeLong
 

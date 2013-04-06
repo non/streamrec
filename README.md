@@ -122,6 +122,16 @@ allocating by-name parameters that defer the next call until the stream needs
 it. The whole thing is a work-around to the lack of multiple return values on
 the JVM.
 
+## Future Work
+
+I'd like to optimize the segmented sieve implementation until I can generate
+the 1-billionth prime in a "reasonable" amount of time. The whole idea for
+this project came out of wanting better support for infinite series and
+sequences in Spire.
+
+It would also be nice to include a non-memoizing stream implementation, since
+for very large streams it's easy to accidentally memoize the entire thing.
+
 ## Caveats
 
 The basic machinery is working but not yet well-tested.
@@ -132,14 +142,6 @@ more, since we're currently using `reify` we have a huge amount of
 boiler-plate shard between each of these, differing only by the number
 of parameters.
 
-There is currently a real risk of name collisions, since its not possible to
-use `reify` while generating fresh names. I still don't fully understand
-quasi-quoting but that may be able to solve the problems.
-
-I was tempted to build the trees "by hand". This would fix the naming problem
-and make it easier to abstract across arity. It would also make the macros
-2.10 compatible (ultimately I'd like to use this technique in Spire).
-Unfortunately these instances are so large that building the trees by hand
-becomes complete unreadable.
-
-Any suggestions on the best way to proceed would be appreciated.
+There is currently a small risk of name collisions, since it's not possible to
+use `reify` while generating fresh names. Unless you like to begin your names
+with double-underscores (e.g. `__n`) it won't be a problem.
