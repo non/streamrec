@@ -87,11 +87,8 @@ object Examples {
     (curr: Long, _: Long, _: ArrayBuffer[Long]) => curr
   )
 
-  //val sieveSize = 450 * 1000
-  val sieveSize = 12 * 1000 * 1000
-  //val sieveSize = 3 * 1000
-  val cutoff = SafeLong(1000000000L)
-
+  val sieveSize = 4800 * 1000
+  val cutoff = SafeLong(1000 * 1000L) // max out at one trillion
   val primes1: InfStream[SafeLong] = Macros.infinite3[SafeLong, Siever, SafeLong, SafeLong](
     () => (Siever(sieveSize, cutoff), SafeLong(2), SafeLong(3)),
     { (siever, a, b) =>

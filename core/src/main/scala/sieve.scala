@@ -23,6 +23,7 @@ import spire.syntax._
  * 3. Use Long internally until we have to switch to SafeLong.
  * 4. Compress the amount of space our heaps take up.
  * 5. Read more efficient segmented sieves to get other ideas.
+ * 6. Try using adding delta-encoded prime log
  * 
  * Obviously InfStream has to be a bit more flexible than a
  * traditional prime finder that knows ahead of time what range it
@@ -67,7 +68,7 @@ case class Factor(p: N, var next: N) extends Ordered[Factor] {
  * contain at least one multiple of 'p' if not more. So we can use a
  * slightly more compact data structure.
  */
-case class FastFactor(p: Int, var m: SafeLong)
+case class FastFactor(p: Int, var m: N)
 
 /**
  * This class simply wraps an Array[FastFactor]. Its only real purpose
@@ -196,7 +197,7 @@ object Sieve {
   }
 }
 
-case class Sieve(start: N, primes: BitSet, cutoff: SafeLong) {
+case class Sieve(start: N, primes: BitSet, cutoff: N) {
   def isPrime(n: N): Boolean = primes((n - start).toInt)
   def isComposite(n: N): Boolean = !primes((n - start).toInt)
   def set(n: N): Unit = primes((n - start).toInt) = true
@@ -209,7 +210,7 @@ case class Sieve(start: N, primes: BitSet, cutoff: SafeLong) {
       if (primes(i)) return start + i
       i += 2
     }
-    null
+    N(-1L) // fail
   }
 
   def init(fastq: FastFactors, slowq: PriorityQueue[Factor]) {
@@ -264,7 +265,7 @@ case class Sieve(start: N, primes: BitSet, cutoff: SafeLong) {
   }
 
   @tailrec
-  private def initFromQueue(limit: SafeLong, q: PriorityQueue[Factor]) {
+  private def initFromQueue(limit: N, q: PriorityQueue[Factor]) {
     if (q.isEmpty) return ()
 
     val factor = q.dequeue
@@ -361,8 +362,8 @@ case class Siever(chunkSize: Int, cutoff: N) {
   if(chunkSize % 480 != 0) sys.error("chunkSize must be a multiple of 480")
 
   val arr = BitSet.alloc(chunkSize)
-  var start: SafeLong = N(0)
-  var limit: SafeLong = start + chunkSize
+  var start: N = N(0)
+  var limit: N = start + chunkSize
   val fastq: FastFactors = FastFactors.empty
   val slowq: PriorityQueue[Factor] = PriorityQueue.empty[Factor]
   var sieve: Sieve = Sieve(start, arr, cutoff)
@@ -370,11 +371,11 @@ case class Siever(chunkSize: Int, cutoff: N) {
 
   def largestBelow(n: N): N = {
     if (n < 3) sys.error("invalid argument: %s" format n)
-    if (n == 3) return SafeLong(2)
+    if (n == 3) return N(2)
 
     var i = 3
     var k = n - 1
-    var last = SafeLong(2)
+    var last = N(2)
     while (true) {
       val primes = sieve.primes
       val len = primes.length
@@ -429,7 +430,7 @@ case class Siever(chunkSize: Int, cutoff: N) {
 
   def nextAfter(n: N): N = {
     var nn = sieve.nextAfter(n)
-    while (nn == null) {
+    while (nn == -1L) {
       initNextSieve()
       nn = sieve.nextAfter(start - 1)
     }
@@ -438,7 +439,7 @@ case class Siever(chunkSize: Int, cutoff: N) {
 }
 
 object SieveTiming {
-  val cutoff = SafeLong(1000 * 1000) // max prime we can find will be <1T
+  val cutoff = N(1000 * 1000) // max prime we can find will be <1T
 
   def main(args: Array[String]) {
     //test(args)
@@ -479,7 +480,7 @@ object SieveTiming {
       1 * 1000 * 1000 ::
       10 * 1000 * 1000 ::
       100 * 1000 * 1000 ::
-      // 1 * 1000 * 1000 * 1000 ::
+      1 * 1000 * 1000 * 1000 ::
       // 2 * 1000 * 1000 * 1000 ::
       Nil
     )
