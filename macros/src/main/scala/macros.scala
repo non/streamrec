@@ -10,9 +10,11 @@ import scala.collection.mutable
 trait InfStream[@sp A] {
   def nth(n: Int): A
   def stream: scala.collection.immutable.Stream[A]
+  def vector(n: Int): Vector[A]
 }
 
 object Macros {
+
   def infinite1[A, B](start: () => B, step: B => B, result: B => A): InfStream[A] =
     macro inf1[A, B]
 
@@ -29,16 +31,13 @@ object Macros {
     import definitions._
 
     val util = new Util[ct.type](ct)
-    val reserved = Set.empty[String]
 
-    util.verifyAnonymousFunction(start.tree, reserved)
-    util.verifyAnonymousFunction(step.tree, reserved)
-    util.verifyAnonymousFunction(result.tree, reserved)
+    util.verifyAnonymousFunction(start.tree)
+    util.verifyAnonymousFunction(step.tree)
+    util.verifyAnonymousFunction(result.tree)
 
-    val i = util.name("i")
-    val n = util.name("n")
-    val b = util.name("b")
-    val b2 = util.name("b2")
+    val List(i, n, v, b, b2) =
+      util.names("i", "n", "v", "b", "b2")
 
     val A = util.tpe[A]
     val B = util.tpe[B]
@@ -66,6 +65,21 @@ object Macros {
           val $b = $start.apply()
           next($b)
         }
+
+        def vector($n: Int): Vector[$A] = {
+          val $v = new scala.collection.immutable.VectorBuilder[$A]
+
+          @scala.annotation.tailrec def loop($i: Int, $b: $B): Unit =
+            if ($i > 1) {
+              $v += $result.apply($b)
+              val $b2 = $step.apply($b)
+              loop($i - 1, $b2)
+            }
+
+          val $b = $start.apply()
+          loop($n, $b)
+          $v.result
+        }
       }
     """
 
@@ -79,18 +93,13 @@ object Macros {
     import definitions._
 
     val util = new Util[ct.type](ct)
-    val reserved = Set.empty[String]
 
-    util.verifyAnonymousFunction(start.tree, reserved)
-    util.verifyAnonymousFunction(step.tree, reserved)
-    util.verifyAnonymousFunction(result.tree, reserved)
+    util.verifyAnonymousFunction(start.tree)
+    util.verifyAnonymousFunction(step.tree)
+    util.verifyAnonymousFunction(result.tree)
 
-    val i = util.name("i")
-    val n = util.name("n")
-    val b = util.name("b")
-    val b2 = util.name("b2")
-    val c = util.name("c")
-    val c2 = util.name("c2")
+    val List(i, n, v, b, b2, c, c2) =
+      util.names("i", "n", "v", "b", "b2", "c", "c2")
 
     val A = util.tpe[A]
     val B = util.tpe[B]
@@ -119,6 +128,21 @@ object Macros {
           val ($b, $c) = $start.apply()
           next($b, $c)
         }
+
+        def vector($n: Int): Vector[$A] = {
+          val $v = new scala.collection.immutable.VectorBuilder[$A]
+
+          @scala.annotation.tailrec def loop($i: Int, $b: $B, $c: $C): Unit =
+            if ($i > 1) {
+              $v += $result.apply($b, $c)
+              val ($b2, $c2) = $step.apply($b, $c)
+              loop($i - 1, $b2, $c2)
+            }
+
+          val ($b, $c) = $start.apply()
+          loop($n, $b, $c)
+          $v.result
+        }
       }
     """
 
@@ -132,20 +156,13 @@ object Macros {
     import definitions._
 
     val util = new Util[ct.type](ct)
-    val reserved = Set.empty[String]
 
-    util.verifyAnonymousFunction(start.tree, reserved)
-    util.verifyAnonymousFunction(step.tree, reserved)
-    util.verifyAnonymousFunction(result.tree, reserved)
+    util.verifyAnonymousFunction(start.tree)
+    util.verifyAnonymousFunction(step.tree)
+    util.verifyAnonymousFunction(result.tree)
 
-    val i = util.name("i")
-    val n = util.name("n")
-    val b = util.name("b")
-    val b2 = util.name("b2")
-    val c = util.name("c")
-    val c2 = util.name("c2")
-    val d = util.name("d")
-    val d2 = util.name("d2")
+    val List(i, n, v, b, b2, c, c2, d, d2) =
+      util.names("i", "n", "v", "b", "b2", "c", "c2", "d", "d2")
 
     val A = util.tpe[A]
     val B = util.tpe[B]
@@ -175,6 +192,21 @@ object Macros {
           val ($b, $c, $d) = $start.apply()
           next($b, $c, $d)
         }
+
+        def vector($n: Int): Vector[$A] = {
+          val $v = new scala.collection.immutable.VectorBuilder[$A]
+
+          @scala.annotation.tailrec def loop($i: Int, $b: $B, $c: $C, $d: $D): Unit =
+            if ($i > 1) {
+              $v += $result.apply($b, $c, $d)
+              val ($b2, $c2, $d2) = $step.apply($b, $c, $d)
+              loop($i - 1, $b2, $c2, $d2)
+            }
+
+          val ($b, $c, $d) = $start.apply()
+          loop($n, $b, $c, $d)
+          $v.result
+        }
       }
     """
 
@@ -188,37 +220,26 @@ object Macros {
     import c.universe._
 
     def tpe[A](implicit ev: c.WeakTypeTag[A]) = ev.tpe
+
+    def tpes[A, B](implicit eva: c.WeakTypeTag[A], evb: c.WeakTypeTag[B]) =
+      List(eva.tpe, evb.tpe)
+    def tpes[A, B, C](implicit eva: c.WeakTypeTag[A], evb: c.WeakTypeTag[B], evc: c.WeakTypeTag[C]) =
+      List(eva.tpe, evb.tpe, evc.tpe)
+    def tpes[A, B, C, D](implicit eva: c.WeakTypeTag[A], evb: c.WeakTypeTag[B], evc: c.WeakTypeTag[C], evd: c.WeakTypeTag[D]) =
+      List(eva.tpe, evb.tpe, evc.tpe, evd.tpe)
+
     def name(s: String) = newTermName(c.fresh(s + "$"))
 
-    class CollisionChecker(names: Set[String]) extends Transformer {
-      var seen = mutable.Set.empty[String]
-      override def transform(tree: Tree): Tree = tree match {
-        case t @ Ident(TermName(s)) if names(s) =>
-          seen.add(s)
-          t
-        case _ =>
-          super.transform(tree)
-      }
-      def check(tree: Tree) {
-        transform(tree)
-        if (!seen.isEmpty) {
-          val names = seen.mkString(", ")
-          val msg = s"Anonymous function using reserved names: $names"
-          c.abort(c.enclosingPosition, msg)
-        }
-      }
-    }
+    def names(ss: String*) = ss.toList.map(name)
 
     def isAnonymousFunction(t: Tree): Boolean = t match {
       case Function(_, _) => true
       case _ => false
     }
 
-    def verifyAnonymousFunction(t: Tree, reserved: Set[String]) {
+    def verifyAnonymousFunction(t: Tree) {
       if (!isAnonymousFunction(t))
         c.abort(c.enclosingPosition, "Arguments required to be anonymous functions")
-      else
-        new CollisionChecker(reserved).check(t)
     }
 
     object TermName {
@@ -351,11 +372,9 @@ object Macros {
       }
     }
 
-    def fixup(tree: Tree): Tree = Fixer.transform(tree)
-
     def inlineCleanupAndReset[T](tree: Tree): c.Expr[T] = {
       val inlined = inlineApplyRecursive(tree)
-      val fixed = fixup(inlined)
+      val fixed = Fixer.transform(inlined)
       val cleaned = Cleanup.transform(fixed)
       c.Expr[T](c.resetAllAttrs(cleaned))
     }
