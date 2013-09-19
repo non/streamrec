@@ -8,7 +8,6 @@ import System.arraycopy
 import spire.algebra._
 import spire.implicits._
 import spire.math._
-import spire.syntax._
 
 /**
  * Segmented Stream of Eratosthenes implementation

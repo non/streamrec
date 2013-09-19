@@ -8,13 +8,12 @@ import System.arraycopy
 import spire.algebra._
 import spire.implicits._
 import spire.math._
-import spire.syntax._
 
 object Examples {
 
-  // the natural numbers: 0, 1, 2, ...
-  val nats: InfStream[Int] =
-    Macros.infinite1[Int, Int](() => 0, _ + 1, n => n)
+  // // the natural numbers: 0, 1, 2, ...
+  // val nats: InfStream[Int] =
+  //   Macros.infinite1[Int, Int](() => 0, _ + 1, n => n)
 
   // the fibonnacci sequence: 0, 1, 1, ...
   val fibs: InfStream[Long] = Macros.infinite2[Long, Long, Long](
@@ -22,6 +21,12 @@ object Examples {
     (x, y) => (y, x + y),
     (x, y) => x
   )
+
+  def fibs(n: Int): Long = {
+    def recur(i: Int, x: Long, y: Long): Long =
+      if (i == 0) x else recur(i - 1, y, x + y)
+    recur(n, 0L, 1L)
+  }
 
   // the non-negative rationals: 0, 1, 2, 1/2, ...
   val rats0: InfStream[Rational] = Macros.infinite3[Rational, Long, Long, Long](
@@ -88,7 +93,7 @@ object Examples {
   )
 
   val sieveSize = 4800 * 1000
-  val cutoff = SafeLong(1000 * 1000L) // max out at one trillion
+  val cutoff = SafeLong(1000 * 1000L) // sieve ends at 1M, max out at 1T
   val primes1: InfStream[SafeLong] = Macros.infinite3[SafeLong, Siever, SafeLong, SafeLong](
     () => (Siever(sieveSize, cutoff), SafeLong(2), SafeLong(3)),
     { (siever, a, b) =>
@@ -98,13 +103,14 @@ object Examples {
     { (siever, a, b) => a }
   )
 
-  def main(args: Array[String]) {
-    println("finding th 100th element, and the first 10 elements:")
-    println("  nats    %s %s" format (nats.nth(100), nats.stream.take(10).toList))
-    println("  fibs    %s %s" format (fibs.nth(100), fibs.stream.take(10).toList))
-    println("  rats0   %s %s" format (rats0.nth(100).toString, rats0.stream.take(10).toList))
-    println("  rats1   %s %s" format (rats1.nth(100).toString, rats1.stream.take(10).toList))
-    println("  primes0  %s %s" format (primes0.nth(100).toString, primes0.stream.take(10).toList))
-    println("  primes1  %s %s" format (primes1.nth(100).toString, primes1.stream.take(10).toList))
-  }
+  // def main(args: Array[String]) {
+  //   val n = 50
+  //   println(s"finding the ${n}th element, and the first 10 elements:")
+  //   println("  nats     %s %s" format (nats.nth(n), nats.stream.take(10).toList))
+  //   println("  fibs     %s %s" format (fibs.nth(n), fibs.stream.take(10).toList))
+  //   // println("  rats0    %s %s" format (rats0.nth(n).toString, rats0.stream.take(10).toList))
+  //   // println("  rats1    %s %s" format (rats1.nth(n).toString, rats1.stream.take(10).toList))
+  //   // println("  primes0  %s %s" format (primes0.nth(n).toString, primes0.stream.take(10).toList))
+  //   // println("  primes1  %s %s" format (primes1.nth(n).toString, primes1.stream.take(10).toList))
+  // }
 }

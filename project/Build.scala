@@ -3,7 +3,7 @@ import Keys._
 
 object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
-    version := "0.1.0",
+    version := "0.2.0",
     scalacOptions ++= Seq(
       "-feature",
       "-Yinline-warnings",
@@ -11,12 +11,17 @@ object BuildSettings {
       "-optimize",
       "-unchecked"
     ),
-    scalaVersion := "2.10.0",
+    scalaVersion := "2.10.2",
+    resolvers += Resolver.sonatypeRepo("snapshots"),
+    addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10.2" % "2.0.0-SNAPSHOT"),
+    // disable annoying warnings about 2.10.x
+    conflictWarning in ThisBuild := ConflictWarning.disable,
     libraryDependencies ++= Seq(
-      "org.spire-math" %% "spire" % "0.4.0-M3",
+      "org.scala-lang" % "scala-reflect" % "2.10.2",
+      "org.spire-math" %% "spire" % "0.6.1",
       "com.google.guava" % "guava" % "r09",
       "com.google.code.java-allocation-instrumenter" % "java-allocation-instrumenter" % "2.0",
-      "com.google.code.caliper" % "caliper" % "1.0-SNAPSHOT" from "http://n0d.es/jars/caliper-1.0-SNAPSHOT.jar",
+      "com.google.code.caliper" % "caliper" % "1.0-SNAPSHOT" from "http://plastic-idolatry.com/jars/caliper-1.0-SNAPSHOT.jar",
       "com.google.code.gson" % "gson" % "1.7.1"
     )
   )
@@ -29,21 +34,18 @@ object MyBuild extends Build {
     "root",
     file("core"),
     settings = buildSettings
-  ) aggregate(macros, core)
+  ).aggregate(macros, core)
 
   lazy val macros: Project = Project(
     "macros",
     file("macros"),
-    settings = buildSettings ++ Seq(
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
-    )
+    settings = buildSettings
   )
 
   lazy val core: Project = Project(
     "core",
     file("core"),
     settings = buildSettings ++ Seq(
-      // raise memory limits here if necessary
       javaOptions in run += "-Xmx6G",
 
       // enable forking in run

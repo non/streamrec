@@ -1,5 +1,7 @@
 package streamrec
 
+import scala.{specialized => spec}
+
 import language.experimental.macros
 import scala.reflect.macros.Context
 import scala.annotation.tailrec
@@ -7,7 +9,7 @@ import scala.collection.mutable
 
 trait InfStream[A] {
   def nth(n: Int): A
-  def stream: Stream[A]
+  def stream: scala.collection.immutable.Stream[A]
 }
 
 object Macros {
@@ -47,8 +49,8 @@ object Macros {
           loop(__n, __b)
         }
 
-        def stream: Stream[A] = {
-          def next(__b: B): Stream[A] =
+        def stream: scala.collection.immutable.Stream[A] = {
+          def next(__b: B): scala.collection.immutable.Stream[A] =
             result.splice.apply(__b) #:: {
               val __b2 = step.splice.apply(__b)
               next(__b2)
@@ -89,8 +91,8 @@ object Macros {
           loop(__n, __b, __c)
         }
 
-        def stream: Stream[A] = {
-          def next(__b: B, __c: C): Stream[A] =
+        def stream: scala.collection.immutable.Stream[A] = {
+          def next(__b: B, __c: C): scala.collection.immutable.Stream[A] =
             result.splice.apply(__b, __c) #:: {
               val (__b2, __c2) = step.splice.apply(__b, __c)
               next(__b2, __c2)
@@ -131,8 +133,8 @@ object Macros {
           loop(__n, __b, __c, __d)
         }
 
-        def stream: Stream[A] = {
-          def next(__b: B, __c: C, __d: D): Stream[A] =
+        def stream: scala.collection.immutable.Stream[A] = {
+          def next(__b: B, __c: C, __d: D): scala.collection.immutable.Stream[A] =
             result.splice.apply(__b, __c, __d) #:: {
               val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
               next(__b2, __c2, __d2)
@@ -146,6 +148,9 @@ object Macros {
     util.inlineCleanupAndReset[InfStream[A]](expr.tree)
   }
 
+  /**
+   * The Util class supports inlining and related optimizations.
+   */
   class Util[C <: Context with Singleton](val c:C) {
     import c.universe._
 
@@ -161,7 +166,8 @@ object Macros {
       def check(tree: Tree) {
         transform(tree)
         if (!seen.isEmpty) {
-          val msg = "Anonymous function using reserved names: %s" format seen.mkString(", ")
+          val names = seen.mkString(", ")
+          val msg = s"Anonymous function using reserved names: $names"
           c.abort(c.enclosingPosition, msg)
         }
       }
@@ -269,6 +275,8 @@ object Macros {
      * Typed detritus that may otherwise derail inlining.
      *
      * TODO: Figure out why inliner doesn't rewrite Typed nodes.
+     * 
+     * TODO: See if we need similar clean up for Tuple2.
      */
     object Cleanup extends Transformer {
       override def transform(tree: Tree): Tree = tree match {
@@ -284,6 +292,19 @@ object Macros {
                 Ident(TermName("b2")),
                 Ident(TermName("c2")),
                 Ident(TermName("d2"))
+              ))))) =>
+          transform(body)
+
+        case Match(
+          body,
+          List(
+            CaseDef(Apply(Ident(TermName("Tuple2")), List(
+              Bind(TermName("b2"), Ident(nme.WILDCARD)),
+              Bind(TermName("c2"), Ident(nme.WILDCARD))
+            )), EmptyTree,
+              Apply(Select(Ident(TermName("Tuple2")), ApplyName), List(
+                Ident(TermName("b2")),
+                Ident(TermName("c2"))
               ))))) =>
           transform(body)
 
@@ -308,7 +329,7 @@ object Macros {
      * 
      * This means taking something like this:
      * 
-     *   ((x: Int, y: Int) => x + y * 2)(3, 44)
+     *   ((x: Int, y: Int) => x + y * 2).apply(3, 44)
      * 
      * And rewriting it to:
      * 
