@@ -11,9 +11,9 @@ import spire.math._
 
 object Examples {
 
-  // // the natural numbers: 0, 1, 2, ...
-  // val nats: InfStream[Int] =
-  //   Macros.infinite1[Int, Int](() => 0, _ + 1, n => n)
+  // the natural numbers: 0, 1, 2, ...
+  val nats: InfStream[Int] =
+    Macros.infinite1[Int, Int](() => 0, _ + 1, n => n)
 
   // the fibonnacci sequence: 0, 1, 1, ...
   val fibs: InfStream[Long] = Macros.infinite2[Long, Long, Long](

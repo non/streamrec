@@ -1,13 +1,13 @@
 package streamrec
 
-import scala.{specialized => spec}
+import scala.{specialized => sp}
 
 import language.experimental.macros
 import scala.reflect.macros.Context
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-trait InfStream[A] {
+trait InfStream[@sp A] {
   def nth(n: Int): A
   def stream: scala.collection.immutable.Stream[A]
 }
@@ -22,130 +22,163 @@ object Macros {
   def infinite3[A, B, C, D](start: () => (B, C, D), step: (B, C, D) => (B, C, D), result: (B, C, D) => A): InfStream[A] =
     macro inf3[A, B, C, D]
 
-  def inf1[A: c.WeakTypeTag, B: c.WeakTypeTag](c: Context)
-    (start: c.Expr[() => B], step: c.Expr[B => B], result: c.Expr[B => A]): c.Expr[InfStream[A]] = {
+  def inf1[A: ct.WeakTypeTag, B: ct.WeakTypeTag](ct: Context)
+    (start: ct.Expr[() => B], step: ct.Expr[B => B], result: ct.Expr[B => A]): ct.Expr[InfStream[A]] = {
 
-    import c.universe._
+    import ct.universe._
     import definitions._
 
-    val util = new Util[c.type](c)
-    val reserved = Set("__i", "__n", "__b", "__b2")
+    val util = new Util[ct.type](ct)
+    val reserved = Set.empty[String]
 
     util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
-    val expr = reify {
-      new InfStream[A] {
-        def nth(__n: Int): A = {
-          @tailrec def loop(__i: Int, __b: B): A =
-            if (__i <= 1) {
-              result.splice.apply(__b)
+    val i = util.name("i")
+    val n = util.name("n")
+    val b = util.name("b")
+    val b2 = util.name("b2")
+
+    val A = util.tpe[A]
+    val B = util.tpe[B]
+
+    val tree = q"""
+      new streamrec.InfStream[$A] {
+        def nth($n: Int): $A = {
+          @scala.annotation.tailrec def loop($i: Int, $b: $B): $A =
+            if ($i <= 1) {
+              $result.apply($b)
             } else {
-              val __b2 = step.splice.apply(__b)
-              loop(__i - 1, __b2)
+              val $b2 = $step.apply($b)
+              loop($i - 1, $b2)
             }
-          val __b = start.splice.apply
-          loop(__n, __b)
+          val $b = $start.apply()
+          loop($n, $b)
         }
 
-        def stream: scala.collection.immutable.Stream[A] = {
-          def next(__b: B): scala.collection.immutable.Stream[A] =
-            result.splice.apply(__b) #:: {
-              val __b2 = step.splice.apply(__b)
-              next(__b2)
+        def stream: scala.collection.immutable.Stream[$A] = {
+          def next($b: $B): scala.collection.immutable.Stream[$A] =
+            $result.apply($b) #:: {
+              val $b2 = $step.apply($b)
+              next($b2)
             }
-          val __b = start.splice.apply
-          next(__b)
+          val $b = $start.apply()
+          next($b)
         }
       }
-    }
+    """
 
-    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
+    util.inlineCleanupAndReset[InfStream[A]](tree)
   }
 
-  def inf2[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag](c: Context)
-    (start: c.Expr[() => (B, C)], step: c.Expr[(B, C) => (B, C)], result: c.Expr[(B, C) => A]): c.Expr[InfStream[A]] = {
+  def inf2[A: ct.WeakTypeTag, B: ct.WeakTypeTag, C: ct.WeakTypeTag](ct: Context)
+    (start: ct.Expr[() => (B, C)], step: ct.Expr[(B, C) => (B, C)], result: ct.Expr[(B, C) => A]): ct.Expr[InfStream[A]] = {
 
-    import c.universe._
+    import ct.universe._
     import definitions._
 
-    val util = new Util[c.type](c)
-    val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2")
+    val util = new Util[ct.type](ct)
+    val reserved = Set.empty[String]
 
     util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
-    val expr = reify {
-      new InfStream[A] {
-        def nth(__n: Int): A = {
-          @tailrec def loop(__i: Int, __b: B, __c: C): A =
-            if (__i <= 1) {
-              result.splice.apply(__b, __c)
+    val i = util.name("i")
+    val n = util.name("n")
+    val b = util.name("b")
+    val b2 = util.name("b2")
+    val c = util.name("c")
+    val c2 = util.name("c2")
+
+    val A = util.tpe[A]
+    val B = util.tpe[B]
+    val C = util.tpe[C]
+
+    val tree = q"""
+      new InfStream[$A] {
+        def nth($n: Int): $A = {
+          @scala.annotation.tailrec def loop($i: Int, $b: $B, $c: $C): $A =
+            if ($i <= 1) {
+              $result.apply($b, $c)
             } else {
-              val (__b2, __c2) = step.splice.apply(__b, __c)
-              loop(__i - 1, __b2, __c2)
+              val ($b2, $c2) = $step.apply($b, $c)
+              loop($i - 1, $b2, $c2)
             }
-          val (__b, __c) = start.splice.apply
-          loop(__n, __b, __c)
+          val ($b, $c) = $start.apply()
+          loop($n, $b, $c)
         }
 
-        def stream: scala.collection.immutable.Stream[A] = {
-          def next(__b: B, __c: C): scala.collection.immutable.Stream[A] =
-            result.splice.apply(__b, __c) #:: {
-              val (__b2, __c2) = step.splice.apply(__b, __c)
-              next(__b2, __c2)
+        def stream: scala.collection.immutable.Stream[$A] = {
+          def next($b: $B, $c: $C): scala.collection.immutable.Stream[$A] =
+            $result.apply($b, $c) #:: {
+              val ($b2, $c2) = $step.apply($b, $c)
+              next($b2, $c2)
             }
-          val (__b, __c) = start.splice.apply
-          next(__b, __c)
+          val ($b, $c) = $start.apply()
+          next($b, $c)
         }
       }
-    }
+    """
 
-    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
+    util.inlineCleanupAndReset[InfStream[A]](tree)
   }
 
-  def inf3[A: c.WeakTypeTag, B: c.WeakTypeTag, C: c.WeakTypeTag, D: c.WeakTypeTag](c: Context)
-    (start: c.Expr[() => (B, C, D)], step: c.Expr[(B, C, D) => (B, C, D)], result: c.Expr[(B, C, D) => A]): c.Expr[InfStream[A]] = {
+  def inf3[A: ct.WeakTypeTag, B: ct.WeakTypeTag, C: ct.WeakTypeTag, D: ct.WeakTypeTag](ct: Context)
+    (start: ct.Expr[() => (B, C, D)], step: ct.Expr[(B, C, D) => (B, C, D)], result: ct.Expr[(B, C, D) => A]): ct.Expr[InfStream[A]] = {
 
-    import c.universe._
+    import ct.universe._
     import definitions._
 
-    val util = new Util[c.type](c)
-    val reserved = Set("__i", "__n", "__b", "__b2", "__c", "__c2", "__d", "__d2")
+    val util = new Util[ct.type](ct)
+    val reserved = Set.empty[String]
 
     util.verifyAnonymousFunction(start.tree, reserved)
     util.verifyAnonymousFunction(step.tree, reserved)
     util.verifyAnonymousFunction(result.tree, reserved)
 
-    val expr = reify {
-      new InfStream[A] {
-        def nth(__n: Int): A = {
-          @tailrec def loop(__i: Int, __b: B, __c: C, __d: D): A =
-            if (__i <= 1) {
-              result.splice.apply(__b, __c, __d)
+    val i = util.name("i")
+    val n = util.name("n")
+    val b = util.name("b")
+    val b2 = util.name("b2")
+    val c = util.name("c")
+    val c2 = util.name("c2")
+    val d = util.name("d")
+    val d2 = util.name("d2")
+
+    val A = util.tpe[A]
+    val B = util.tpe[B]
+    val C = util.tpe[C]
+    val D = util.tpe[D]
+
+    val tree = q"""
+      new InfStream[$A] {
+        def nth($n: Int): $A = {
+          @scala.annotation.tailrec def loop($i: Int, $b: $B, $c: $C, $d: $D): $A =
+            if ($i <= 1) {
+              $result.apply($b, $c, $d)
             } else {
-              val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
-              loop(__i - 1, __b2, __c2, __d2)
+              val ($b2, $c2, $d2) = $step.apply($b, $c, $d)
+              loop($i - 1, $b2, $c2, $d2)
             }
-          val (__b, __c, __d) = start.splice.apply
-          loop(__n, __b, __c, __d)
+          val ($b, $c, $d) = $start.apply()
+          loop($n, $b, $c, $d)
         }
 
-        def stream: scala.collection.immutable.Stream[A] = {
-          def next(__b: B, __c: C, __d: D): scala.collection.immutable.Stream[A] =
-            result.splice.apply(__b, __c, __d) #:: {
-              val (__b2, __c2, __d2) = step.splice.apply(__b, __c, __d)
-              next(__b2, __c2, __d2)
+        def stream: scala.collection.immutable.Stream[$A] = {
+          def next($b: $B, $c: $C, $d: $D): scala.collection.immutable.Stream[$A] =
+            $result.apply($b, $c, $d) #:: {
+              val ($b2, $c2, $d2) = $step.apply($b, $c, $d)
+              next($b2, $c2, $d2)
             }
-          val (__b, __c, __d) = start.splice.apply
-          next(__b, __c, __d)
+          val ($b, $c, $d) = $start.apply()
+          next($b, $c, $d)
         }
       }
-    }
+    """
 
-    util.inlineCleanupAndReset[InfStream[A]](expr.tree)
+    util.inlineCleanupAndReset[InfStream[A]](tree)
   }
 
   /**
@@ -153,6 +186,9 @@ object Macros {
    */
   class Util[C <: Context with Singleton](val c:C) {
     import c.universe._
+
+    def tpe[A](implicit ev: c.WeakTypeTag[A]) = ev.tpe
+    def name(s: String) = newTermName(c.fresh(s + "$"))
 
     class CollisionChecker(names: Set[String]) extends Transformer {
       var seen = mutable.Set.empty[String]
