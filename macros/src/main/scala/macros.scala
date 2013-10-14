@@ -146,7 +146,10 @@ object Macros {
       }
     """
 
-    util.inlineCleanupAndReset[InfStream[A]](tree)
+    val e = util.inlineCleanupAndReset[InfStream[A]](tree)
+    //println(showRaw(e))
+    //println(show(e))
+    e
   }
 
   def inf3[A: ct.WeakTypeTag, B: ct.WeakTypeTag, C: ct.WeakTypeTag, D: ct.WeakTypeTag](ct: Context)
@@ -294,14 +297,8 @@ object Macros {
         loop(0, Nil, trees)
       }
 
-      def handle(trees: List[Tree]): List[Tree] = trees match {
-        case ValDef(
-          _: Modifiers, TermName(xx), _,
-          Match(
-            Annotated(Apply(Select(New(Ident(_)), _), Nil),
-              Apply(TypeApply(Select(Select(Ident(scala), TermName(tn)), ApplyName), _),
-                args)), _)) :: rest if tn.startsWith("Tuple") =>
-
+      def handle(trees: List[Tree]): List[Tree] = {
+        def rewrite(args: List[Tree], tn: String, rest: List[Tree]): List[Tree] =
           matchTplDerefs(args.length, tn, rest) match {
             case Some((names, rest)) =>
               names.zip(args).map { case (name, arg) =>
@@ -311,11 +308,17 @@ object Macros {
               trees.head :: handle(rest)
           }
 
-        case t :: ts =>
-          t :: handle(ts)
+        // TODO: make this less brittle
+        trees match {
+          case ValDef(_: Modifiers, TermName(xx), _, Match(Annotated(Apply(Select(New(Select(Ident(_), _)), _), Nil), Apply(TypeApply(Select(Select(Ident(scala), TermName(tn)), ApplyName), _), args)), _)) :: rest if tn.startsWith("Tuple") =>
+            rewrite(args, tn, rest)
 
-        case Nil =>
-          Nil
+          case t :: ts =>
+            t :: handle(ts)
+
+          case Nil =>
+            Nil
+        }
       }
 
       override def transform(tree: Tree): Tree = tree match {

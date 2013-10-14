@@ -32,7 +32,7 @@ object MyBuild extends Build {
 
   lazy val root: Project = Project(
     "root",
-    file("core"),
+    file("."),
     settings = buildSettings
   ).aggregate(macros, core)
 
