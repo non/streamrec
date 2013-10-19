@@ -1,27 +1,67 @@
 package streamrec
 
 import spire.implicits._
+import scala.language.experimental.macros
 
-case object Runtime
+object Raster {
+  type R = Array[Int]
 
-trait Op[A] {
-  def run(sys: Runtime): A
+  def genUnop(d: R)(f: Int => Int): R = {
+    val out = new Array[Int](d.length)
+    var i = 0
+    while (i < d.length) {
+      out(i) = f(d(i))
+      i += 1
+    }
+    out
+  }
+
+  def genBinop(d1: R, d2: R)(f: (Int, Int) => Int): R = {
+    val d3 = new Array[Int](d1.length)
+    var i = 0
+    while (i < d1.length) {
+      d3(i) = f(d1(i), d2(i))
+      i += 1
+    }
+    d3
+  }
+
+  def macUnop(r: R)(f: Int => Int): R = macro RasterOps.unop
+
+  def macBinop(r1: R, r2: R)(f: (Int, Int) => Int): R = macro RasterOps.binop
+
+  // def dirmin(d1: R, d2: R): R = {
+  //   val d3 = new Array[Int](d1.length)
+  //   var i = 0
+  //   while (i < d1.length) { d3(i) = Math.min(d1(i), d2(i)); i += 1 }
+  //   d3
+  // }
+  // 
+  // def dirmax(d1: R, d2: R): R = {
+  //   val d3 = new Array[Int](d1.length)
+  //   var i = 0
+  //   while (i < d1.length) { d3(i) = Math.max(d1(i), d2(i)); i += 1 }
+  //   d3
+  // }
+  // 
+  // def diradd(d1: R, d2: R): R = {
+  //   val d3 = new Array[Int](d1.length)
+  //   var i = 0
+  //   while (i < d1.length) { d3(i) = d1(i) + d2(i); i += 1 }
+  //   d3
+  // }
+  // 
+  // def dirmul(d1: R, d2: R): R = {
+  //   val d3 = new Array[Int](d1.length)
+  //   var i = 0
+  //   while (i < d1.length) { d3(i) = d1(i) * d2(i); i += 1 }
+  //   d3
+  // }
+  // 
+  // def dirsub(d1: R, d2: R): R = {
+  //   val d3 = new Array[Int](d1.length)
+  //   var i = 0
+  //   while (i < d1.length) { d3(i) = d1(i) - d2(i); i += 1 }
+  //   d3
+  // }
 }
-
-case class Map1[A, B](a: Op[A])(f: A => B) extends Op[B] {
-  def run(sys: Runtime): B = f(a.run(sys))
-}
-
-case class Map2[A, B, C](a: Op[A], b: Op[B])(f: (A, B) => C) extends Op[C] {
-  def run(sys: Runtime): C = f(a.run(sys), b.run(sys))
-}
-
-object AddF {
-  def apply(r1: Op[Raster], r2: Op[Raster]): Op[Raster] =
-    Map2(r1, r2)((r1, r2) => r1.binop(r2)(_ + _))
-}
-
-// object AddM {
-//   def apply(r1: Op[Raster], r2: Op[Raster]): Op[Raster] =
-//     Map2(r1, r2)((r1, r2) => RasterOps.binop(r1, r2)(_ + _))
-// }

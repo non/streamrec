@@ -131,6 +131,7 @@ object Macros {
 
         def vector($n: Int): Vector[$A] = {
           val $v = new scala.collection.immutable.VectorBuilder[$A]
+          sys.error("oh no!!!!")
 
           @scala.annotation.tailrec def loop($i: Int, $b: $B, $c: $C): Unit =
             if ($i > 1) {

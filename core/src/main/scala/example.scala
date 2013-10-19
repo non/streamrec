@@ -19,8 +19,13 @@ object Examples {
   val fibs: InfStream[Long] = Macros.infinite2[Long, Long, Long](
     () => (0L, 1L),
     (x, y) => (y, x + y),
-    (x, y) => x
+    (x, y) => { x }
   )
+
+  def main(args: Array[String]) {
+    val xyz = fibs.vector(5) // will blow up
+    println("great")
+  }
 
   // def fibs(n: Int): Long = {
   //   def recur(i: Int, x: Long, y: Long): Long =
