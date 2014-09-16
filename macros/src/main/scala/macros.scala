@@ -380,7 +380,7 @@ object Macros {
       val inlined = inlineApplyRecursive(tree)
       val fixed = Fixer.transform(inlined)
       val cleaned = Cleanup.transform(fixed)
-      c.Expr[T](c.resetAllAttrs(cleaned))
+      c.Expr[T](c.resetLocalAttrs(cleaned))
     }
 
     /**

@@ -23,7 +23,7 @@ object RasterOps {
       out
     }"""
 
-    util.inlineCleanupAndReset[R](tree)
+    util.inlineCleanupAndReset(tree)
   }
 
   def binop(ct: Context)(r1: ct.Expr[R], r2: ct.Expr[R])(f: ct.Expr[(Int, Int) => Int]): ct.Expr[R] = {
@@ -43,6 +43,29 @@ object RasterOps {
       d3
     }"""
 
-    util.inlineCleanupAndReset[R](tree)
+    util.inlineCleanupAndReset(tree)
+  }
+
+  trait Blitter {
+    def blit(in1: Array[Int], in2: Array[Int], out: Array[Int]): Unit
+  }
+
+  def cliffClick(ct: Context)(f: ct.Expr[(Int, Int) => Int]): ct.Expr[Blitter] = {
+    import ct.universe._
+    import definitions._
+    val util = new Macros.Util[ct.type](ct)
+    util.verifyAnonymousFunction(f.tree)
+    val List(i, a, b, c) = util.names("i", "a", "b", "c")
+    val tree = q"""
+    new Blitter {
+      def blit($a: Array[Int], $b: Array[Int], $c: Array[Int]): Unit = {
+        var $i = 0
+        while (i < $a.length) {
+          $c($i) = $f($a($i), $b($i))
+          $i += 1
+        }
+      }
+    }"""
+    util.inlineCleanupAndReset(tree)
   }
 }

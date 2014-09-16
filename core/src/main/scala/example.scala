@@ -22,10 +22,10 @@ object Examples {
     (x, y) => { x }
   )
 
-  def main(args: Array[String]) {
-    val xyz = fibs.vector(5) // will blow up
-    println("great")
-  }
+  // def main(args: Array[String]) {
+  //   val xyz = fibs.vector(5) // will blow up
+  //   println("great")
+  // }
 
   // def fibs(n: Int): Long = {
   //   def recur(i: Int, x: Long, y: Long): Long =
@@ -97,16 +97,29 @@ object Examples {
   //   (curr: Long, _: Long, _: ArrayBuffer[Long]) => curr
   // )
 
-  // val sieveSize = 4800 * 1000
-  // val cutoff = SafeLong(1000 * 1000L) // sieve ends at 1M, max out at 1T
-  // val primes1: InfStream[SafeLong] = Macros.infinite3[SafeLong, Siever, SafeLong, SafeLong](
-  //   () => (Siever(sieveSize, cutoff), SafeLong(2), SafeLong(3)),
-  //   { (siever, a, b) =>
-  //     val c = siever.nextAfter(b)
-  //     (siever, b, c)
-  //   },
-  //   { (siever, a, b) => a }
-  // )
+  //val chunkSize = 4800 * 1000
+  val chunkSize = 120 * 1000
+  val cutoff = SafeLong(1000 * 1000L) // sieve ends at 1M, max out at 1T
+  val primes1: InfStream[SafeLong] = Macros.infinite3[SafeLong, Siever, SafeLong, SafeLong](
+    () => (Siever(chunkSize, cutoff), SafeLong(2), SafeLong(3)),
+    { (siever, a, b) =>
+      val c = siever.nextAfter(b)
+      (siever, b, c)
+    },
+    { (siever, a, b) => a }
+  )
+
+  def main(args: Array[String]) {
+    // val xyz = fibs.vector(5) // will blow up
+    // println("great")
+    (0 until 10).foreach(_ => ugh)
+  }
+  def ugh {
+    val t0 = System.nanoTime
+    val n = primes1.stream.take(10000).foldLeft(SafeLong(0))(_ + _)
+    val t = System.nanoTime - t0
+    println((t, n))
+  }
 
   // // def main(args: Array[String]) {
   // //   val n = 50

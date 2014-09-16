@@ -112,34 +112,16 @@ case class BitSet(len: Int, arr: Array[Int]) {
     arr(q) = arr(q) & ~(1 << (n & 31))
   }
 
-  def update(n: Int, b: Boolean) {
+  def update(n: Int, b: Boolean): Unit =
     if (b) this += n else this -= n
-  }
 
   def apply(n: Int): Boolean = {
     val q = n >> 5
-      ((arr(q) >>> (n & 31)) & 1) == 1
+    ((arr(q) >>> (n & 31)) & 1) == 1
   }
 
   def clear(): Unit =
     cfor(0)(_ < arr.length, _ + 1)(arr(_) = 0)
-
-  // def nextAfter(n0: Int): Int = {
-  //   var n = n0 + 1
-  //   var i = n >> 5
-  //   var m = (n & 31)
-  //   while (i < arr.length) {
-  //     val x = arr(i)
-  //     while (m < 32) {
-  //       if (((x >>> m) & 1) == 1) return n
-  //       n += 1
-  //       m += 1
-  //     }
-  //     i += 1
-  //     m = 0
-  //   }
-  //   -1
-  // }
 }
 
 /**
@@ -148,8 +130,8 @@ case class BitSet(len: Int, arr: Array[Int]) {
  * The 'start' field says what this segment's first number
  * is. 'primes' is a bitset of possible primes in this
  * segment. 'cutoff' specifies the largest prime factor we're
- * interested in. This means that cutoff**2-1 is the largest prime we
- * can reliably identify.
+ * interested in. This means that cutoff**2-1 is the largest number we
+ * could reliably identify as prime.
  * 
  * We are using a mod30 wheel, which means that we don't need to
  * manually factor using 2, 3, or 5 (30 is the lcm of 2, 3, and
@@ -358,7 +340,7 @@ object Siever {
 }
 
 case class Siever(chunkSize: Int, cutoff: N) {
-  if(chunkSize % 480 != 0) sys.error("chunkSize must be a multiple of 480")
+  if (chunkSize % 480 != 0) sys.error("chunkSize must be a multiple of 480")
 
   val arr = BitSet.alloc(chunkSize)
   var start: N = N(0)
@@ -480,7 +462,7 @@ object SieveTiming {
       10 * 1000 * 1000 ::
       100 * 1000 * 1000 ::
       1 * 1000 * 1000 * 1000 ::
-      // 2 * 1000 * 1000 * 1000 ::
+      Int.MaxValue ::
       Nil
     )
 
